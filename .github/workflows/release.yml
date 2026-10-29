@@ -1,0 +1,35 @@
+name: release
+on:
+  push:
+    tags: ["v*"]
+permissions:
+  contents: write
+jobs:
+  release:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+      - run: go test ./...
+      - name: build
+        shell: bash
+        run: |
+          set -euo pipefail
+          v="${GITHUB_REF_NAME}"
+          mkdir dist
+          for arch in amd64 arm64; do
+            d="berth-$v-windows-$arch"
+            mkdir "$d"
+            GOOS=windows GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$v" -o "$d/berth.exe" .
+            GOOS=windows GOARCH=$arch CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -X main.version=$v -H=windowsgui" -o "$d/berthw.exe" .
+            cp README.md LICENSE "$d/"
+            7z a -tzip "dist/$d.zip" "$d" >/dev/null
+          done
+          (cd dist && sha256sum *.zip > SHA256SUMS)
+      - name: publish
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes
