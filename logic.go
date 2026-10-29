@@ -216,8 +216,21 @@ func LatestDockerZip(index string) (string, error) {
 
 // Asset: one file of a GitHub release.
 type Asset struct {
-	Name string `json:"name"`
-	URL  string `json:"browser_download_url"`
+	Name   string `json:"name"`
+	URL    string `json:"browser_download_url"`
+	Digest string `json:"digest"` // "sha256:<hex>", GitHub's own sum of the file
+}
+
+// WantSum: the sha256 a file must have. The project's own sums file first (sums, "" when the release
+// has none); else GitHub's digest of the upload (buildx's sums leave its Windows builds out).
+func WantSum(sums string, a Asset) (string, bool) {
+	if s, ok := SumFor(sums, a.Name); ok && sums != "" {
+		return s, true
+	}
+	if d, ok := strings.CutPrefix(a.Digest, "sha256:"); ok && len(d) == 64 {
+		return strings.ToLower(d), true
+	}
+	return "", false
 }
 
 // PickAsset: the release's file whose name starts with prefix and ends with suffix (".exe", say).

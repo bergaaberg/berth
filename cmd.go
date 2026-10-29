@@ -369,19 +369,20 @@ func release(repo string) ([]Asset, string, error) {
 	return r.Assets, r.Tag, nil
 }
 
-// fetchChecked downloads one release file and checks it against the release's sums.
+// fetchChecked downloads one release file and checks it against the release's sums (or, when they
+// leave it out, GitHub's digest of it).
 func fetchChecked(assets []Asset, a Asset, sumsName string) ([]byte, error) {
-	s, ok := PickAsset(assets, sumsName, "")
-	if !ok {
-		return nil, fmt.Errorf("no %s in the release", sumsName)
+	sums := ""
+	if s, ok := PickAsset(assets, sumsName, ""); ok && s.Name == sumsName {
+		b, err := get(s.URL)
+		if err != nil {
+			return nil, err
+		}
+		sums = string(b)
 	}
-	sums, err := get(s.URL)
-	if err != nil {
-		return nil, err
-	}
-	want, ok := SumFor(string(sums), a.Name)
+	want, ok := WantSum(sums, a)
 	if !ok {
-		return nil, fmt.Errorf("%s has no sum for %s", sumsName, a.Name)
+		return nil, fmt.Errorf("no sum for %s, in %s or from GitHub", a.Name, sumsName)
 	}
 	b, err := get(a.URL)
 	if err != nil {

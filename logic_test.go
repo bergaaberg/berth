@@ -172,6 +172,23 @@ func TestAssetsAndSums(t *testing.T) {
 	}
 }
 
+func TestWantSum(t *testing.T) {
+	h, g := strings.Repeat("ab", 32), strings.Repeat("cd", 32)
+	a := Asset{Name: "buildx-v0.38.1.windows-amd64.exe", Digest: "sha256:" + g}
+	if s, _ := WantSum(h+" *buildx-v0.38.1.windows-amd64.exe\n", a); s != h {
+		t.Fatal("the project's own sum comes first")
+	}
+	if s, _ := WantSum(h+" *buildx-v0.38.1.linux-amd64\n", a); s != g {
+		t.Fatal("left out of the sums: GitHub's digest")
+	}
+	if _, ok := WantSum("", Asset{Name: "x.exe"}); ok {
+		t.Fatal("no sum at all must refuse")
+	}
+	if _, ok := WantSum("", Asset{Name: "x.exe", Digest: "md5:abc"}); ok {
+		t.Fatal("only sha256")
+	}
+}
+
 func TestArch(t *testing.T) {
 	if ArchOf("arm64").Static != "aarch64" || ArchOf("amd64").Compose != "x86_64" {
 		t.Fatal("arch")
