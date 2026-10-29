@@ -55,7 +55,12 @@ That:
 
 ## Good to know
 
-- **Ports** published by containers are on `localhost` (WSL 2 forwards them).
+- **Ports** published by containers are on `localhost` (WSL 2 forwards them), but with WSL's default
+  NAT networking only on loopback. So SQL Server's `Server=.` (and `(local)`), which SqlClient sends
+  to the machine's own addresses, times out; `127.0.0.1` works. `networkingMode=mirrored` (with
+  `hostAddressLoopback=true` under `[experimental]`) in `%USERPROFILE%\.wslconfig` fixes `.`, but
+  then Windows' IPv6 `::1` doesn't reach the distro: clients that try `localhost` over IPv6 first
+  without racing IPv4 (.NET's HttpClient, PowerShell) stall. Use `127.0.0.1` there.
 - **Bind mounts** from Windows paths work (`-v C:\src\app:/app` reaches `/mnt/c/...`) but are slow.
   For heavy I/O, keep the project inside the distro: `wsl -d berth`.
 - **Memory and CPU** are WSL's, set in `%USERPROFILE%\.wslconfig`. That file is global to WSL: it
