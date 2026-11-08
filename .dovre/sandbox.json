@@ -1,0 +1,7 @@
+{
+  "allow": [
+    "proxy.golang.org",
+    "sum.golang.org"
+  ],
+  "setup": "go mod download"
+}
