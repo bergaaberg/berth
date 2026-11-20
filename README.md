@@ -25,11 +25,13 @@ That:
 1. puts berth in `%LOCALAPPDATA%\berth\bin` and on your PATH;
 2. makes the `berth` distro (Ubuntu 24.04 with Docker Engine, compose and buildx), or adopts Dovre's
    `dovre-docker` distro with its images, containers and volumes;
-3. has the distro trust what Windows trusts, so pulls work behind a TLS-inspecting proxy;
-4. fetches the Windows docker CLI, compose and buildx (`~/.docker/cli-plugins`) and the wincred
+3. registers QEMU in the distro, so an image built for another CPU (an arm64 image on an x64 PC)
+   runs emulated, as on Docker Desktop;
+4. has the distro trust what Windows trusts, so pulls work behind a TLS-inspecting proxy;
+5. fetches the Windows docker CLI, compose and buildx (`~/.docker/cli-plugins`) and the wincred
    credential helper, checked against their releases' sums;
-5. adds a `berth` docker context, starts berth at login, and starts it;
-6. switches the docker CLI to berth (`berth use`), unless Docker Desktop is running.
+6. adds a `berth` docker context, starts berth at login, and starts it;
+7. switches the docker CLI to berth (`berth use`), unless Docker Desktop is running.
 
 ## Use
 
