@@ -208,6 +208,10 @@ func TestSetupScript(t *testing.T) {
 	if strings.Contains(s, "\r") || !strings.Contains(s, "systemd=true") || !strings.Contains(s, "docker.io") || !strings.Contains(s, "BEGIN CERTIFICATE") {
 		t.Fatal(s)
 	}
+	// Without QEMU an image built for another CPU fails with "exec format error".
+	if !strings.Contains(s, "qemu-user-static") || !strings.Contains(UpdateScript, "qemu-user-static") {
+		t.Fatal("no qemu")
+	}
 	// The certificates are a quoted heredoc: nothing in them is expanded by bash.
 	if !strings.Contains(s, "<<'BERTH_CERTS'") {
 		t.Fatal("unquoted heredoc")

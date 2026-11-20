@@ -284,12 +284,13 @@ func PEM(der []byte) string {
 // SetupScript: what runs in the distro as root (bash -euo pipefail, on stdin). It installs Docker
 // Engine from Ubuntu's archive (plain http, so it works before any certificate is in), trusts what
 // Windows trusts (certs: PEM text; behind a TLS-inspecting proxy Linux needs that proxy's root),
-// and has systemd start dockerd with the distro.
+// has systemd start dockerd with the distro, and registers QEMU so images built for another CPU
+// run emulated, as on Docker Desktop.
 func SetupScript(certs string) string {
 	s := `export DEBIAN_FRONTEND=noninteractive
-if ! command -v dockerd >/dev/null || ! command -v socat >/dev/null || ! command -v update-ca-certificates >/dev/null || ! docker compose version >/dev/null 2>&1; then
+if ! command -v dockerd >/dev/null || ! command -v socat >/dev/null || ! command -v update-ca-certificates >/dev/null || ! docker compose version >/dev/null 2>&1 || ! command -v qemu-aarch64-static >/dev/null; then
   apt-get update -qq
-  apt-get install -y -qq --no-install-recommends ca-certificates systemd systemd-sysv dbus iptables docker.io docker-compose-v2 docker-buildx socat >/dev/null
+  apt-get install -y -qq --no-install-recommends ca-certificates systemd systemd-sysv dbus iptables docker.io docker-compose-v2 docker-buildx socat qemu-user-static >/dev/null
 fi
 mkdir -p /usr/local/share/ca-certificates/berth
 rm -f /usr/local/share/ca-certificates/berth/*.crt /usr/local/share/ca-certificates/zscaler*.crt
@@ -309,6 +310,9 @@ default=root
 appendWindowsPath=false
 EOF
 systemctl enable docker.service docker.socket >/dev/null 2>&1 || true
+# Registers qemu-user-static's binfmt entries now; on a fresh distro systemd isn't running yet and
+# does it at the next start. WSL's own drop-in registers WSLInterop again afterwards.
+systemctl restart systemd-binfmt.service >/dev/null 2>&1 || true
 `
 	return strings.ReplaceAll(s, "\r", "")
 }
@@ -318,10 +322,15 @@ const WaitScript = `for i in $(seq 1 60); do [ -S /var/run/docker.sock ] && dock
 docker version --format "Docker Engine {{.Server.Version}} in $(. /etc/os-release; echo $PRETTY_NAME)"
 `
 
-// UpdateScript: upgrades the engine's packages, then restarts it.
+// UpdateScript: upgrades the engine's packages, then restarts it. A distro set up before berth
+// installed QEMU gets it here.
 const UpdateScript = `export DEBIAN_FRONTEND=noninteractive
 apt-get update -qq
-apt-get install -y -qq --only-upgrade docker.io docker-compose-v2 docker-buildx socat ca-certificates >/dev/null
+apt-get install -y -qq --only-upgrade docker.io docker-compose-v2 docker-buildx socat ca-certificates qemu-user-static >/dev/null
+if ! command -v qemu-aarch64-static >/dev/null; then
+  apt-get install -y -qq --no-install-recommends qemu-user-static >/dev/null
+  systemctl restart systemd-binfmt.service
+fi
 systemctl restart docker.service
 `
 
